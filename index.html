@@ -1,0 +1,791 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Quantum Entanglement</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Roboto+Mono:wght@400;700&display=swap');
+
+        :root {
+            --primary: #00f3ff;
+            --secondary: #ff00ff;
+            --bg: #050510;
+            --panel: #0a0a1a;
+        }
+
+        body {
+            background-color: var(--bg);
+            color: #e0e0ff;
+            font-family: 'Roboto Mono', monospace;
+            overflow: hidden;
+            touch-action: none;
+            height: 100vh;
+            width: 100vw;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .scanline {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,0) 50%, rgba(0,0,0,0.1) 50%, rgba(0,0,0,0.1));
+            background-size: 100% 4px;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        #game-wrapper {
+            flex-grow: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            background: var(--panel);
+            border-bottom: 2px solid #1a1a3a;
+            overflow: hidden;
+            padding: 10px;
+        }
+
+        canvas {
+            max-width: 100%;
+            max-height: 100%;
+            box-shadow: 0 0 15px rgba(0, 243, 255, 0.1);
+            border-radius: 4px;
+            object-fit: contain;
+        }
+
+        #controls-area {
+            height: 260px;
+            min-height: 260px;
+            background: #080815;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding-bottom: 20px;
+        }
+
+        .d-pad {
+            display: grid;
+            grid-template-columns: 70px 70px 70px;
+            grid-template-rows: 60px 60px;
+            gap: 8px;
+        }
+
+        .d-btn {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(0, 243, 255, 0.2);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            color: var(--primary);
+            cursor: pointer;
+            touch-action: manipulation;
+            user-select: none;
+            transition: all 0.1s;
+            box-shadow: 0 4px 0 rgba(0,0,0,0.5);
+        }
+
+        .d-btn:active, .d-btn.pressed {
+            transform: translateY(4px);
+            box-shadow: 0 0 0 rgba(0,0,0,0.5);
+            background: rgba(0, 243, 255, 0.15);
+            border-color: var(--primary);
+        }
+
+        /* Undo Button specific size adjustment */
+        .undo-btn {
+            font-size: 20px; /* Slightly smaller to fit the circular arrow nicely */
+        }
+
+        header {
+            padding: 10px 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #02020a;
+            border-bottom: 1px solid #1a1a3a;
+            height: 60px;
+        }
+
+        .title {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.1rem;
+            color: var(--primary);
+            text-shadow: 0 0 8px rgba(0, 243, 255, 0.4);
+        }
+
+        .btn-small {
+            background: #1a1a3a;
+            border: 1px solid #3b3b6d;
+            padding: 6px 12px;
+            font-size: 0.75rem;
+            color: #aaa;
+            border-radius: 4px;
+            text-transform: uppercase;
+            cursor: pointer;
+        }
+
+        .overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(5, 5, 16, 0.95);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 50;
+            backdrop-filter: blur(5px);
+            padding: 20px;
+            text-align: center;
+        }
+
+        .overlay h2 {
+            font-family: 'Orbitron', sans-serif;
+            margin-bottom: 1rem;
+            color: var(--primary);
+        }
+
+        .big-btn {
+            background: var(--primary);
+            color: #000;
+            font-weight: bold;
+            padding: 15px 40px;
+            border-radius: 8px;
+            font-size: 1.2rem;
+            margin-top: 20px;
+            border: none;
+            box-shadow: 0 0 15px var(--primary);
+            text-transform: uppercase;
+            font-family: 'Orbitron', sans-serif;
+            cursor: pointer;
+        }
+
+        /* Level Grid */
+        #level-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 10px;
+            max-width: 400px;
+            max-height: 300px;
+            overflow-y: auto;
+            margin-bottom: 20px;
+        }
+        
+        .lvl-btn {
+            width: 40px;
+            height: 40px;
+            background: #1a1a3a;
+            border: 1px solid #3b3b6d;
+            color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        .lvl-btn.locked { opacity: 0.3; pointer-events: none; }
+        .lvl-btn.active { border-color: var(--primary); color: var(--primary); box-shadow: 0 0 5px var(--primary); }
+
+        .hidden { display: none !important; }
+
+        @media (min-width: 768px) {
+            #controls-area {
+                height: auto;
+                min-height: 0;
+                padding: 20px;
+                background: transparent;
+                position: absolute;
+                bottom: 20px;
+                right: 20px;
+                width: auto;
+                pointer-events: none;
+            }
+            .d-pad {
+                pointer-events: auto;
+                opacity: 0.5;
+            }
+            .d-pad:hover {
+                opacity: 1;
+            }
+            #game-wrapper {
+                border: 2px solid #1a1a3a;
+                margin: 20px;
+                border-radius: 8px;
+                height: calc(100vh - 100px);
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div>
+            <div class="title">QUANTUM ENTANGLEMENT</div>
+            <div class="text-xs text-slate-400 mt-1" id="level-indicator">LEVEL 1</div>
+        </div>
+        <div class="flex gap-2">
+            <button id="menu-btn" class="btn-small text-cyan-300 border-cyan-800">Levels</button>
+            <button id="reset-btn" class="btn-small">Reset (R)</button>
+        </div>
+    </header>
+
+    <div id="game-wrapper">
+        <canvas id="gameCanvas"></canvas>
+        <div class="scanline"></div>
+
+        <div id="start-screen" class="overlay">
+            <h2 class="text-3xl text-cyan-400">INITIALIZE</h2>
+            <p class="text-slate-300 text-sm mb-4 leading-relaxed max-w-md">
+                Control <span class="text-cyan-400 font-bold">CYAN</span> and <span class="text-fuchsia-400 font-bold">MAGENTA</span> simultaneously.
+            </p>
+            <p class="text-slate-400 text-xs mb-8">
+                40 Levels of increasing entanglement.<br>
+                Particles lock when they reach their goal.
+            </p>
+            <button id="start-btn" class="big-btn">START</button>
+        </div>
+
+        <div id="level-screen" class="overlay hidden">
+            <h2 class="text-3xl text-green-400">SYNCED</h2>
+            <p class="text-slate-300 mb-6">Quantum state stabilized.</p>
+            <button id="next-level-btn" class="big-btn bg-green-500 shadow-green-500">NEXT</button>
+        </div>
+
+        <!-- End Game Overlay -->
+        <div id="end-screen" class="overlay hidden">
+            <h2 class="text-3xl text-cyan-400">SINGULARITY</h2>
+            <p class="text-slate-300 mb-6 max-w-xs">
+                You have mastered the quantum realm.<br>All 40 levels complete.
+            </p>
+            <button id="restart-game-btn" class="big-btn">REBOOT</button>
+        </div>
+    </div>
+
+    <div id="controls-area">
+        <div class="d-pad">
+            <div class="d-btn undo-btn" id="btn-undo">↺</div>
+            <div class="d-btn" id="btn-up">▲</div>
+            <div></div>
+            
+            <div class="d-btn" id="btn-left">◀</div>
+            <div class="d-btn" id="btn-down">▼</div>
+            <div class="d-btn" id="btn-right">▶</div>
+        </div>
+        <div class="mt-4 text-[10px] text-slate-600 uppercase tracking-widest hidden md:block">
+            Arrow Keys to Move • Z to Undo
+        </div>
+    </div>
+
+<script>
+/**
+ * QUANTUM ENTANGLEMENT: GRANDMASTER EDITION
+ * 40 Levels | Undo System | Save System
+ */
+
+const LEVELS = [
+    // --- INTRO (1-5) ---
+    ["#######", "#C...c#", "#.....#", "#M...m#", "#######"], 
+    ["#######", "#C.#.c#", "#..#..#", "#..#..#", "#M...m#", "#######"], 
+    ["########", "#C.y.c.#", "#......#", "#.x.m.M#", "########"], 
+    ["#######", "#C...m#", "#####.#", "#c...M#", "#######"], 
+    ["#########", "#C.x.x.c#", "#.......#", "#M.y.y.m#", "#########"], 
+
+    // --- INTERMEDIATE (6-10) ---
+    ["#######", "#C...m#", "#.###.#", "#...#.#", "###.#.#", "#c....M#", "########"], 
+    ["########", "#C.y...#", "###x##.#", "#m...#.c#", "#.##y###", "#...x.M#", "########"], 
+    ["##########", "#C.......#", "#####x####", "#m...y..c#", "####y#####", "#.......M#", "##########"], 
+    ["########", "#C..x..#", "#..###m#", "#..#...#", "#c###..#", "#..y..M#", "########"], 
+    ["###########", "#C...#...M#", "#.x#y#x#y.#", "#.........#", "#.y#x#y#x.#", "#c...#...m#", "###########"], 
+
+    // --- ADVANCED (11-15) ---
+    ["#########", "#C.....M#", "#.##.##.#", "#.......#", "#.##.##.#", "#m.....c#", "#########"],
+    ["###########", "#C...y...c#", "#####x#####", "#M.......m#", "###########"],
+    ["########", "#CM....#", "######.#", "#c...#.m", "########"],
+    ["########", "#C#y#y.#", "#.#.#.#.", "#.#.#.M#", "#c...#.m", "########"],
+    ["#########", "#C......#", "###x#x###", "#m..M..c#", "#########"],
+
+    // --- EXPERT (16-20) ---
+    ["#########", "#C.#.m..#", "####.####", "#..#....#", "#..M..c.#", "#########"],
+    ["##########", "#C.x.y.x.#", "#........#", "#.y.x.y.M#", "#c......m#", "##########"],
+    ["#######", "#C...m#", "#####.#", "#.....#", "#.#####", "#c...M#", "#######"],
+    ["###########", "#C.......c#", "#####.#####", "#M...#...m#", "#.###.###.#", "#.........#", "###########"],
+    ["#########", "#...C...#", "#...#...#", "#m..#..c#", "####.####", "#...M...#", "#########"],
+
+    // --- MASTER (21-25) ---
+    ["##########", "#C......c#", "######y###", "#M...y...#", "######y###", "#........m", "##########"],
+    ["#########", "#C#m....#", "#.#.###.#", "#.#.#M#.#", "#.#...#.#", "#.#####.#", "#......c#", "#########"],
+    ["###########", "#C...#...M#", "#.x.....y.#", "#####.#####", "#c...#...m#", "###########"],
+    ["###########", "#C.M......#", "#.#.#.#.#.#", "#.#.#.#.#.#", "#.#.#.#.#.#", "#c.m......#", "###########"],
+    ["########", "#C....M#", "#.####.#", "#x#..#y#", "#.#..#.#", "#c....m#", "########"],
+
+    // --- GRANDMASTER (26-30) ---
+    ["######", "#C..M#", "#.##.#", "#c..m#", "######"],
+    ["#############", "#C.........M#", "######y######", "#c....#....m#", "#############"],
+    ["##########", "#C..x..y.#", "###.####.#", "#M..y..x.#", "#.####.###", "#c.....m.#", "##########"],
+    ["###########", "#C.......c#", "#.#######.#", "#.#M...m#.#", "#.#.###.#.#", "#.#.....#.#", "#.#######.#", "#.........#", "###########"],
+    ["#############", "#C#...#...#m#", "#.#x#y#x#y#.#", "#...........#", "#.#y#x#y#x#.#", "#.#...#...#.#", "#####.#.#####", "#c..........M", "#############"],
+
+    // --- IMPOSSIBLE (31-35) ---
+    // 31: The Cage Match
+    ["#######", "#C...c#", "#.###.#", "#.#m#.#", "#.#M#.#", "#.###.#", "#######"],
+    // 32: Separation Anxiety II
+    ["#############", "#C.........m#", "#######.#####", "#M.........c#", "#############"],
+    // 33: The Checkerboard
+    ["#########", "#C.y.x.m#", "#.#.#.#.#", "#.#.#.#.#", "#c.x.y.M#", "#########"],
+    // 34: The Squeeze
+    ["##########", "#C......M#", "########.#", "#m......c#", "##########"],
+    // 35: Entanglement Paradox
+    ["#########", "#C.y.y.c#", "#.#x#x#.#", "#.......#", "#.#x#x#.#", "#M.y.y.m#", "#########"],
+
+    // --- SINGULARITY (36-40) ---
+    // 36: Broken Mirror
+    ["###########", "#C...#...M#", "#.##...##.#", "#....#....#", "##...#...##", "#c...#...m#", "###########"],
+    // 37: The Gauntlet
+    ["#############", "#C.x.y.x.y.c#", "#############", "#m.y.x.y.x.M#", "#############"],
+    // 38: Claustrophobia
+    ["#######", "#C...M#", "#.###.#", "#.#m#.#", "#.#c#.#", "#.....#", "#######"],
+    // 39: Event Horizon
+    ["###########", "#C.......m#", "#.#######.#", "#.#.....#.#", "#.#.###.#.#", "#.#.#c#.#.#", "#.#.###.#.#", "#.#.....#.#", "#M#######.#", "###########"],
+    // 40: The Final Test
+    ["#############", "#C...y...x.M#", "####.#.#.####", "#....#.#....#", "#.####.####.#", "#....#.#....#", "####.#.#.####", "#c...x...y.m#", "#############"]
+];
+
+const TILE_SIZE = 36;
+const COLORS = {
+    bg: '#0a0a1a',
+    wall: '#1a1a3a',
+    wallBorder: '#3b3b6d',
+    cyan: '#00f3ff',
+    magenta: '#ff00ff',
+    cyanGoal: 'rgba(0, 243, 255, 0.2)',
+    magentaGoal: 'rgba(255, 0, 255, 0.2)'
+};
+
+let currentLevelIdx = 0;
+let unlockedLevel = 0;
+let map = [];
+let particles = { c: {x:0, y:0}, m: {x:0, y:0} };
+let goals = { c: {x:0, y:0}, m: {x:0, y:0} };
+let isGameActive = false;
+let moveHistory = []; // For Undo
+
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const levelIndicator = document.getElementById('level-indicator');
+
+// Audio
+const AudioContext = window.AudioContext || window.webkitAudioContext;
+let audioCtx = new AudioContext();
+
+function playSound(type) {
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    const osc = audioCtx.createOscillator();
+    const gainNode = audioCtx.createGain();
+    osc.connect(gainNode);
+    gainNode.connect(audioCtx.destination);
+    const now = audioCtx.currentTime;
+    
+    if (type === 'move') {
+        osc.frequency.setValueAtTime(200, now);
+        osc.frequency.exponentialRampToValueAtTime(10, now + 0.1);
+        gainNode.gain.setValueAtTime(0.05, now);
+        gainNode.gain.linearRampToValueAtTime(0, now + 0.1);
+        osc.start(now); osc.stop(now + 0.1);
+    } else if (type === 'win') {
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(440, now);
+        osc.frequency.setValueAtTime(880, now + 0.1);
+        gainNode.gain.setValueAtTime(0.1, now);
+        gainNode.gain.linearRampToValueAtTime(0, now + 0.3);
+        osc.start(now); osc.stop(now + 0.3);
+    } else if (type === 'blocked') {
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(100, now);
+        gainNode.gain.setValueAtTime(0.05, now);
+        gainNode.gain.linearRampToValueAtTime(0, now + 0.1);
+        osc.start(now); osc.stop(now + 0.1);
+    } else if (type === 'undo') {
+        osc.frequency.setValueAtTime(150, now);
+        osc.frequency.linearRampToValueAtTime(50, now + 0.1);
+        gainNode.gain.setValueAtTime(0.05, now);
+        gainNode.gain.linearRampToValueAtTime(0, now + 0.1);
+        osc.start(now); osc.stop(now + 0.1);
+    }
+}
+
+// Storage Logic
+function loadProgress() {
+    const saved = localStorage.getItem('quantum_unlocked');
+    if (saved) unlockedLevel = parseInt(saved);
+}
+
+function saveProgress() {
+    if (currentLevelIdx + 1 > unlockedLevel) {
+        unlockedLevel = currentLevelIdx + 1;
+        localStorage.setItem('quantum_unlocked', unlockedLevel);
+    }
+}
+
+function initMenu() {
+    loadProgress();
+    const grid = document.getElementById('level-grid');
+    if (!grid) return;
+    
+    grid.innerHTML = '';
+    
+    // Resume button
+    if (currentLevelIdx > 0) document.getElementById('resume-btn').classList.remove('hidden');
+
+    for (let i = 0; i < LEVELS.length; i++) {
+        const btn = document.createElement('div');
+        btn.classList.add('lvl-btn');
+        btn.innerText = i + 1;
+        
+        if (i > unlockedLevel) {
+            btn.classList.add('locked');
+            btn.innerText = "🔒";
+        } else {
+            btn.onclick = () => {
+                document.getElementById('menu-screen').classList.add('hidden');
+                loadLevel(i);
+            };
+        }
+        
+        if (i === currentLevelIdx) btn.classList.add('active');
+        
+        grid.appendChild(btn);
+    }
+}
+
+function loadLevel(idx) {
+    if (idx >= LEVELS.length) {
+        document.getElementById('end-screen').classList.remove('hidden');
+        isGameActive = false;
+        return;
+    }
+
+    currentLevelIdx = idx;
+    moveHistory = []; // Reset history on level load
+    const levelData = LEVELS[idx];
+    const rows = levelData.length;
+    const cols = levelData[0].length;
+
+    canvas.width = cols * TILE_SIZE;
+    canvas.height = rows * TILE_SIZE;
+    
+    map = [];
+    for (let y = 0; y < rows; y++) {
+        let row = [];
+        for (let x = 0; x < cols; x++) {
+            const char = levelData[y][x];
+            let tile = '.';
+            if (char === '#') tile = '#'; 
+            if (char === 'x') tile = 'x'; 
+            if (char === 'y') tile = 'y'; 
+
+            if (char === 'C') { particles.c = {x, y}; }
+            if (char === 'M') { particles.m = {x, y}; }
+            if (char === 'c') { goals.c = {x, y}; tile = 'c'; }
+            if (char === 'm') { goals.m = {x, y}; tile = 'm'; }
+            row.push(tile);
+        }
+        map.push(row);
+    }
+    
+    levelIndicator.innerText = `LEVEL ${idx + 1}/${LEVELS.length}`;
+    isGameActive = true;
+    draw();
+}
+
+function draw() {
+    ctx.fillStyle = COLORS.bg;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    for (let y = 0; y < map.length; y++) {
+        for (let x = 0; x < map[0].length; x++) {
+            const tile = map[y][x];
+            const px = x * TILE_SIZE;
+            const py = y * TILE_SIZE;
+
+            if (tile === '#') {
+                ctx.fillStyle = COLORS.wall;
+                ctx.fillRect(px, py, TILE_SIZE, TILE_SIZE);
+                ctx.fillStyle = '#000';
+                ctx.fillRect(px + 4, py + 4, TILE_SIZE - 8, TILE_SIZE - 8);
+                ctx.strokeStyle = COLORS.wallBorder;
+                ctx.strokeRect(px + 4, py + 4, TILE_SIZE - 8, TILE_SIZE - 8);
+            } else if (tile === 'x') {
+                ctx.strokeStyle = COLORS.cyan;
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(px + 8, py + 8); ctx.lineTo(px + TILE_SIZE - 8, py + TILE_SIZE - 8);
+                ctx.moveTo(px + TILE_SIZE - 8, py + 8); ctx.lineTo(px + 8, py + TILE_SIZE - 8);
+                ctx.stroke();
+                ctx.strokeRect(px+2, py+2, TILE_SIZE-4, TILE_SIZE-4);
+            } else if (tile === 'y') {
+                ctx.strokeStyle = COLORS.magenta;
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(px + 8, py + 8); ctx.lineTo(px + TILE_SIZE - 8, py + TILE_SIZE - 8);
+                ctx.moveTo(px + TILE_SIZE - 8, py + 8); ctx.lineTo(px + 8, py + TILE_SIZE - 8);
+                ctx.stroke();
+                ctx.strokeRect(px+2, py+2, TILE_SIZE-4, TILE_SIZE-4);
+            }
+            
+            if (tile === 'c') drawGoal(px, py, COLORS.cyanGoal, COLORS.cyan);
+            if (tile === 'm') drawGoal(px, py, COLORS.magentaGoal, COLORS.magenta);
+        }
+    }
+
+    drawParticle(particles.c.x, particles.c.y, COLORS.cyan);
+    drawParticle(particles.m.x, particles.m.y, COLORS.magenta);
+}
+
+function drawGoal(px, py, fill, stroke) {
+    ctx.fillStyle = fill;
+    ctx.beginPath();
+    ctx.arc(px + TILE_SIZE/2, py + TILE_SIZE/2, TILE_SIZE/3, 0, Math.PI*2);
+    ctx.fill();
+    ctx.strokeStyle = stroke;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+}
+
+function drawParticle(x, y, color) {
+    const px = x * TILE_SIZE + TILE_SIZE/2;
+    const py = y * TILE_SIZE + TILE_SIZE/2;
+    ctx.shadowBlur = 10;
+    ctx.shadowColor = color;
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.arc(px, py, TILE_SIZE/4, 0, Math.PI*2);
+    ctx.fill();
+    ctx.fillStyle = '#fff';
+    ctx.beginPath();
+    ctx.arc(px, py, TILE_SIZE/8, 0, Math.PI*2);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+}
+
+function isBlocked(x, y, type) {
+    if (y < 0 || y >= map.length || x < 0 || x >= map[0].length) return true;
+    const tile = map[y][x];
+    if (tile === '#') return true;
+    if (type === 'c' && tile === 'x') return true;
+    if (type === 'm' && tile === 'y') return true;
+    return false;
+}
+
+function move(dx, dy) {
+    if (!isGameActive) return;
+
+    // Check if particles are already in their goals (Locking mechanic)
+    const cLocked = (particles.c.x === goals.c.x && particles.c.y === goals.c.y);
+    const mLocked = (particles.m.x === goals.m.x && particles.m.y === goals.m.y);
+
+    // If both are locked, we are done
+    if (cLocked && mLocked) return;
+
+    // Save state for undo
+    moveHistory.push({
+        c: { ...particles.c },
+        m: { ...particles.m }
+    });
+    // Limit history
+    if (moveHistory.length > 50) moveHistory.shift();
+
+    let moved = false;
+
+    // Move Cyan if not locked
+    if (!cLocked) {
+        const nextCX = particles.c.x + dx;
+        const nextCY = particles.c.y + dy;
+        if (!isBlocked(nextCX, nextCY, 'c')) {
+            particles.c.x = nextCX;
+            particles.c.y = nextCY;
+            moved = true;
+        }
+    }
+
+    // Move Magenta if not locked
+    if (!mLocked) {
+        const nextMX = particles.m.x + dx;
+        const nextMY = particles.m.y + dy;
+        if (!isBlocked(nextMX, nextMY, 'm')) {
+            particles.m.x = nextMX;
+            particles.m.y = nextMY;
+            moved = true;
+        }
+    }
+
+    if (moved) {
+        playSound('move');
+        draw();
+        
+        // Check win
+        if (particles.c.x === goals.c.x && particles.c.y === goals.c.y &&
+            particles.m.x === goals.m.x && particles.m.y === goals.m.y) {
+            
+            playSound('win');
+            isGameActive = false;
+            saveProgress();
+            
+            setTimeout(() => {
+                document.getElementById('level-screen').classList.remove('hidden');
+            }, 300);
+        }
+    } else {
+        moveHistory.pop(); // Remove state if didn't move
+        playSound('blocked');
+    }
+}
+
+function undo() {
+    if (!isGameActive || moveHistory.length === 0) return;
+    const state = moveHistory.pop();
+    particles.c = state.c;
+    particles.m = state.m;
+    playSound('undo');
+    draw();
+}
+
+// Controls
+function setupBtn(id, dx, dy) {
+    const btn = document.getElementById(id);
+    if (!btn) return;
+    
+    const trigger = (e) => {
+        if(e.cancelable) e.preventDefault();
+        btn.classList.add('pressed');
+        move(dx, dy);
+        setTimeout(() => btn.classList.remove('pressed'), 100);
+    };
+    btn.addEventListener('touchstart', trigger, {passive: false});
+    btn.addEventListener('mousedown', trigger);
+}
+
+// Boot Sequence
+function initGame() {
+    canvas.width = 300; canvas.height = 300;
+    
+    // Setup controls
+    setupBtn('btn-up', 0, -1);
+    setupBtn('btn-down', 0, 1);
+    setupBtn('btn-left', -1, 0);
+    setupBtn('btn-right', 1, 0);
+
+    const undoBtn = document.getElementById('btn-undo');
+    if (undoBtn) {
+        const triggerUndo = (e) => {
+            if(e.cancelable) e.preventDefault();
+            undoBtn.classList.add('pressed');
+            undo();
+            setTimeout(() => undoBtn.classList.remove('pressed'), 100);
+        };
+        undoBtn.addEventListener('touchstart', triggerUndo, {passive: false});
+        undoBtn.addEventListener('mousedown', triggerUndo);
+    }
+
+    // UI Event Listeners
+    const menuBtn = document.getElementById('menu-btn');
+    if (menuBtn) {
+        menuBtn.addEventListener('click', () => {
+            initMenu();
+            document.getElementById('menu-screen').classList.remove('hidden');
+            isGameActive = false;
+        });
+    }
+
+    const resumeBtn = document.getElementById('resume-btn');
+    if (resumeBtn) {
+        resumeBtn.addEventListener('click', () => {
+            document.getElementById('menu-screen').classList.add('hidden');
+            isGameActive = true;
+        });
+    }
+
+    const nextBtn = document.getElementById('next-level-btn');
+    if (nextBtn) {
+        nextBtn.addEventListener('click', () => {
+            document.getElementById('level-screen').classList.add('hidden');
+            loadLevel(currentLevelIdx + 1);
+        });
+    }
+
+    const restartBtn = document.getElementById('restart-game-btn');
+    if (restartBtn) {
+        restartBtn.addEventListener('click', () => {
+            document.getElementById('end-screen').classList.add('hidden');
+            loadLevel(0);
+        });
+    }
+    
+    const resetBtn = document.getElementById('reset-btn');
+    if (resetBtn) resetBtn.addEventListener('click', () => loadLevel(currentLevelIdx));
+    
+    // Start buttons
+    const startBtn = document.getElementById('start-btn');
+    if (startBtn) {
+        startBtn.addEventListener('click', () => {
+            document.getElementById('start-screen').classList.add('hidden');
+            loadLevel(0);
+        });
+    }
+
+    initMenu();
+}
+
+window.addEventListener('DOMContentLoaded', initGame);
+
+window.addEventListener('keydown', (e) => {
+    if(["ArrowUp","ArrowDown","ArrowLeft","ArrowRight"," "].indexOf(e.code) > -1) e.preventDefault();
+    if (!isGameActive) return;
+    
+    const key = e.key.toLowerCase();
+    if (key === 'arrowup' || key === 'w') { 
+        const btn = document.getElementById('btn-up'); 
+        if(btn) btn.classList.add('pressed'); 
+        move(0, -1); 
+    }
+    if (key === 'arrowdown' || key === 's') { 
+        const btn = document.getElementById('btn-down'); 
+        if(btn) btn.classList.add('pressed'); 
+        move(0, 1); 
+    }
+    if (key === 'arrowleft' || key === 'a') { 
+        const btn = document.getElementById('btn-left'); 
+        if(btn) btn.classList.add('pressed'); 
+        move(-1, 0); 
+    }
+    if (key === 'arrowright' || key === 'd') { 
+        const btn = document.getElementById('btn-right'); 
+        if(btn) btn.classList.add('pressed'); 
+        move(1, 0); 
+    }
+    if (key === 'z') { 
+        const btn = document.getElementById('btn-undo'); 
+        if(btn) btn.classList.add('pressed'); 
+        undo(); 
+    }
+    if (key === 'r') loadLevel(currentLevelIdx);
+});
+
+window.addEventListener('keyup', () => {
+    document.querySelectorAll('.d-btn').forEach(b => b.classList.remove('pressed'));
+});
+
+</script>
+</body>
+</html>
